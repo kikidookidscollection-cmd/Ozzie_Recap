@@ -79,10 +79,13 @@ if generate_btn and api_key and user_input:
             video_context = f"ရုပ်ရှင်အမည် - {user_input}"
             if tmdb_api_key:
                 search_url = f"https://api.themoviedb.org/3/search/movie?api_key={tmdb_api_key}&query={user_input}"
-                response = requests.get(search_url).json()
-                if response.get('results') and response['results'][0].get('poster_path'):
-                    poster_url = f"https://image.tmdb.org/t/p/w500{response['results'][0]['poster_path']}"
-                    st.image(poster_url, width=300)
+                try:
+                    response = requests.get(search_url).json()
+                    if response.get('results') and response['results'][0].get('poster_path'):
+                        poster_url = f"https://image.tmdb.org/t/p/w500{response['results'][0]['poster_path']}"
+                        st.image(poster_url, width=300)
+                except:
+                    pass
 
         # AI သို့ စေခိုင်းခြင်း
         if video_context:
@@ -98,33 +101,29 @@ if generate_btn and api_key and user_input:
             ---
             """
             
-            with st.spinner("⏳ AI မော်ဒယ်ကို ချိတ်ဆက်ပြီး ဇာတ်ညွှန်း ရေးသားနေပါသည်..."):
+            with st.spinner("⏳ AI မော်ဒယ်အသစ်ဖြင့် ဇာတ်ညွှန်း ရေးသားနေပါသည်..."):
                 
-                # --- [အသစ်ပြင်ဆင်ထားသော အပိုင်း] ---
-                # သင့် API Key ဖြင့် သုံး၍ရသော Model များကို AI ထံ အရင်လှမ်းမေးပြီး အလိုအလျောက် ရွေးချယ်ပါမည်။
-                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                
-                if not available_models:
-                    st.error("⚠️ သင့် API Key ဖြင့် အသုံးပြုနိုင်သော Model မရှိပါ။ API Key ကို အသစ်ပြန်ယူကြည့်ပါ။")
-                else:
-                    # မှန်ကန်သော မော်ဒယ်ကို အလိုအလျောက် သုံးစွဲခြင်း (Error လုံးဝ မတက်စေရန်)
-                    model = genai.GenerativeModel(available_models[0])
-                    response = model.generate_content(prompt)
-                    clips = response.text.split('---') 
-                
-                    # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
-                    for index, clip in enumerate(clips):
-                        if clip.strip() and "ခေါင်းစဉ်:" in clip:
-                            with st.container():
-                                st.markdown(f"### 🎬 Clip {index + 1}")
-                                st.markdown(clip)
-                                
-                                with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
+                # Google က တောင်းဆိုထားသော gemini-3.6-flash မော်ဒယ်အသစ်ကို တိုက်ရိုက် သုံးစွဲထားပါသည်
+                model = genai.GenerativeModel('gemini-3.6-flash')
+                response = model.generate_content(prompt)
+                clips = response.text.split('---') 
+            
+                # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
+                for index, clip in enumerate(clips):
+                    if clip.strip() and "ခေါင်းစဉ်:" in clip:
+                        with st.container():
+                            st.markdown(f"### 🎬 Clip {index + 1}")
+                            st.markdown(clip)
+                            
+                            with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
+                                try:
                                     tts = gTTS(text=clip.strip(), lang='my', slow=False)
                                     sound_file = io.BytesIO()
                                     tts.write_to_fp(sound_file)
                                     st.audio(sound_file, format='audio/mp3')
-                                st.markdown("---")
+                                except Exception as e:
+                                    st.warning("အသံဖိုင် ဖန်တီး၍ မရပါ။")
+                            st.markdown("---")
             
     except Exception as e:
         st.error(f"❌ အမှားအယွင်း ဖြစ်ပေါ်နေပါသည်: {e}")
