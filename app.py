@@ -3,7 +3,6 @@ import google.generativeai as genai
 from gtts import gTTS
 import requests
 import io
-import re
 from youtube_transcript_api import YouTubeTranscriptApi
 from bs4 import BeautifulSoup
 
@@ -22,19 +21,22 @@ generate_btn = st.button("Viral Clips ၃ ခု ဖန်တီးပါ 🚀",
 
 # --- Functions ---
 def extract_video_id(url):
-    regex = r"(?youtu\.be/|v/|u/\w/|embed/|watch\?v=|&v=)([^#&?]*).*"
-    match = re.search(regex, url)
-    return match.group(2) if match and len(match.group(2)) == 11 else None
+    try:
+        if "youtu.be/" in url:
+            return url.split("youtu.be/")[1].split("?")[0][:11]
+        elif "watch?v=" in url:
+            return url.split("watch?v=")[1].split("&")[0][:11]
+    except:
+        return None
+    return None
 
 def scrape_website_text(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
-        # Website ထဲရှိ စာပိုဒ် (p) အားလုံးကို ဆွဲယူခြင်း
         paragraphs = soup.find_all('p')
         text = " ".join([p.get_text() for p in paragraphs])
-        # AI ဖတ်နိုင်ရန် စာလုံးရေ ၁၀၀၀၀ ခန့်သာ ကန့်သတ်ယူခြင်း
         return text[:10000]
     except Exception as e:
         return None
@@ -57,8 +59,10 @@ if generate_btn and api_key and user_input:
                         video_context = " ".join([t['text'] for t in transcript_list])
                         st.success("YouTube မှ အချက်အလက်များ အောင်မြင်စွာ ရယူနိုင်ပါပြီ။")
                     except Exception:
-                        st.warning("ဤ ဗီဒီယိုတွင် Subtitle (Transcript) မပါဝင်ပါ။")
+                        st.warning("ဤ ဗီဒီယိုတွင် Subtitle (Transcript) မပါဝင်ပါ။ AI မှ ခေါင်းစဉ်ကိုသာ ကြည့်၍ ဖန်တီးပေးပါမည်။")
                         video_context = f"Video Link: {user_input}"
+            else:
+                st.warning("⚠️ YouTube Link ပုံစံ မှားယွင်းနေပါသည်။")
                         
         # ၂။ Input သည် အခြား Website Link ဖြစ်နေလျှင်
         elif user_input.startswith("http://") or user_input.startswith("https://"):
@@ -82,35 +86,36 @@ if generate_btn and api_key and user_input:
                     st.image(poster_url, width=300)
 
         # AI သို့ စေခိုင်းခြင်း
-        prompt = f"""
-        အောက်ပါ အချက်အလက်များအပေါ် အခြေခံ၍ TikTok/Shorts တွင် တင်ရန် အလွန်ဆွဲဆောင်မှုရှိသော (၁ မိနစ်စာ) ဇာတ်ညွှန်းတို (၃) ခုကို မြန်မာဘာသာဖြင့် ရေးပေးပါ။
-        အချက်အလက်: {video_context}
-        
-        ဇာတ်ညွှန်းတစ်ခုစီကို အောက်ပါပုံစံအတိုင်း တိတိကျကျ ရေးပါ-
-        
-        ခေါင်းစဉ်: [ဆွဲဆောင်မှုရှိသော Clickbait ခေါင်းစဉ်]
-        Virality Score: [လူကြည့်များနိုင်ချေ 1 မှ 100 အတွင်း အမှတ်ပေးရန်]
-        ဇာတ်ညွှန်း: [ပြောရမည့် စာသားများ]
-        ---
-        """
-        
-        with st.spinner("⏳ ဇာတ်ညွှန်း (၃) ခုကို ခွဲခြမ်းစိတ်ဖြာနေပါသည်..."):
-            response = model.generate_content(prompt)
-            clips = response.text.split('---') 
-        
-        # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
-        for index, clip in enumerate(clips):
-            if clip.strip() and "ခေါင်းစဉ်:" in clip:
-                with st.container():
-                    st.markdown(f"### 🎬 Clip {index + 1}")
-                    st.markdown(clip)
-                    
-                    with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
-                        tts = gTTS(text=clip.strip(), lang='my', slow=False)
-                        sound_file = io.BytesIO()
-                        tts.write_to_fp(sound_file)
-                        st.audio(sound_file, format='audio/mp3')
-                    st.markdown("---")
+        if video_context:
+            prompt = f"""
+            အောက်ပါ အချက်အလက်များအပေါ် အခြေခံ၍ TikTok/Shorts တွင် တင်ရန် အလွန်ဆွဲဆောင်မှုရှိသော (၁ မိနစ်စာ) ဇာတ်ညွှန်းတို (၃) ခုကို မြန်မာဘာသာဖြင့် ရေးပေးပါ။
+            အချက်အလက်: {video_context}
+            
+            ဇာတ်ညွှန်းတစ်ခုစီကို အောက်ပါပုံစံအတိုင်း တိတိကျကျ ရေးပါ-
+            
+            ခေါင်းစဉ်: [ဆွဲဆောင်မှုရှိသော Clickbait ခေါင်းစဉ်]
+            Virality Score: [လူကြည့်များနိုင်ချေ 1 မှ 100 အတွင်း အမှတ်ပေးရန်]
+            ဇာတ်ညွှန်း: [ပြောရမည့် စာသားများ]
+            ---
+            """
+            
+            with st.spinner("⏳ ဇာတ်ညွှန်း (၃) ခုကို ခွဲခြမ်းစိတ်ဖြာနေပါသည်..."):
+                response = model.generate_content(prompt)
+                clips = response.text.split('---') 
+            
+            # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
+            for index, clip in enumerate(clips):
+                if clip.strip() and "ခေါင်းစဉ်:" in clip:
+                    with st.container():
+                        st.markdown(f"### 🎬 Clip {index + 1}")
+                        st.markdown(clip)
+                        
+                        with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
+                            tts = gTTS(text=clip.strip(), lang='my', slow=False)
+                            sound_file = io.BytesIO()
+                            tts.write_to_fp(sound_file)
+                            st.audio(sound_file, format='audio/mp3')
+                        st.markdown("---")
             
     except Exception as e:
         st.error(f"❌ အမှားအယွင်း ဖြစ်ပေါ်နေပါသည်: {e}")
