@@ -45,7 +45,6 @@ def scrape_website_text(url):
 if generate_btn and api_key and user_input:
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
         
         video_context = ""
         
@@ -99,23 +98,33 @@ if generate_btn and api_key and user_input:
             ---
             """
             
-            with st.spinner("⏳ ဇာတ်ညွှန်း (၃) ခုကို ခွဲခြမ်းစိတ်ဖြာနေပါသည်..."):
-                response = model.generate_content(prompt)
-                clips = response.text.split('---') 
-            
-            # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
-            for index, clip in enumerate(clips):
-                if clip.strip() and "ခေါင်းစဉ်:" in clip:
-                    with st.container():
-                        st.markdown(f"### 🎬 Clip {index + 1}")
-                        st.markdown(clip)
-                        
-                        with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
-                            tts = gTTS(text=clip.strip(), lang='my', slow=False)
-                            sound_file = io.BytesIO()
-                            tts.write_to_fp(sound_file)
-                            st.audio(sound_file, format='audio/mp3')
-                        st.markdown("---")
+            with st.spinner("⏳ AI မော်ဒယ်ကို ချိတ်ဆက်ပြီး ဇာတ်ညွှန်း ရေးသားနေပါသည်..."):
+                
+                # --- [အသစ်ပြင်ဆင်ထားသော အပိုင်း] ---
+                # သင့် API Key ဖြင့် သုံး၍ရသော Model များကို AI ထံ အရင်လှမ်းမေးပြီး အလိုအလျောက် ရွေးချယ်ပါမည်။
+                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                
+                if not available_models:
+                    st.error("⚠️ သင့် API Key ဖြင့် အသုံးပြုနိုင်သော Model မရှိပါ။ API Key ကို အသစ်ပြန်ယူကြည့်ပါ။")
+                else:
+                    # မှန်ကန်သော မော်ဒယ်ကို အလိုအလျောက် သုံးစွဲခြင်း (Error လုံးဝ မတက်စေရန်)
+                    model = genai.GenerativeModel(available_models[0])
+                    response = model.generate_content(prompt)
+                    clips = response.text.split('---') 
+                
+                    # ဇာတ်ညွှန်း တစ်ခုစီကို ခွဲ၍ ပြသခြင်းနှင့် အသံထုတ်ခြင်း
+                    for index, clip in enumerate(clips):
+                        if clip.strip() and "ခေါင်းစဉ်:" in clip:
+                            with st.container():
+                                st.markdown(f"### 🎬 Clip {index + 1}")
+                                st.markdown(clip)
+                                
+                                with st.spinner("🎧 အသံဖိုင် ဖန်တီးနေပါသည်..."):
+                                    tts = gTTS(text=clip.strip(), lang='my', slow=False)
+                                    sound_file = io.BytesIO()
+                                    tts.write_to_fp(sound_file)
+                                    st.audio(sound_file, format='audio/mp3')
+                                st.markdown("---")
             
     except Exception as e:
         st.error(f"❌ အမှားအယွင်း ဖြစ်ပေါ်နေပါသည်: {e}")
