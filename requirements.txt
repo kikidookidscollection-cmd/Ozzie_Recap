@@ -1,0 +1,6 @@
+streamlit
+google-generativeai
+gTTS
+requests
+youtube-transcript-api
+beautifulsoup4
